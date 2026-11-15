@@ -94,6 +94,7 @@ function headWeights(logical){
  return {pivot,weights,boundary};
 }
 function deformHeadPoint(p,pivot,w,f){const a=1+(f-1)*w;return pivot.map((v,i)=>v+(p[i]-v)*a);}
+function headWeightsForPoint(p,hw){let d=Infinity;for(const id of hw.boundary){const q=logical[id];d=Math.min(d,Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]));}const t=Math.max(0,Math.min(1,d/0.38));return t*t*(3-2*t)}
 \nfunction sm(v,a,b){const t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t)}
 function mapPt(x,y,z,sh,k){let X=x,Y=y,Z=z;
 if(Math.abs(x)>S&&y>4.0){let a=Math.abs(x);const E0=1.6,Wr=2.5,Ex=E0+k.el;if(a<Wr)a=a<=E0?S+(a-S)*(Ex-S)/(E0-S):Ex+(a-E0)*(Wr-Ex)/(Wr-E0);X=Math.sign(x)*(S+(a-S)*k.arm)}
