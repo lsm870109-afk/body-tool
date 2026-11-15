@@ -83,7 +83,7 @@ for(const s of SH){let cx=[0,0],cz=[0,0],nn=[0,0];
 if(s.shoe){for(let i=0;i<s.c;i++){const x=dv.getFloat32(s.off+i*12,true),z=dv.getFloat32(s.off+i*12+8,true);const q=x<0?0:1;cx[q]+=x;cz[q]+=z;nn[q]++}for(let q=0;q<2;q++){if(nn[q]){cx[q]/=nn[q];cz[q]/=nn[q]}}}
 let ch=0,an=null;if(s.hand){const sg=s.mn[0]<0?-1:1;an=mapPt(sg*Math.min(Math.abs(s.mn[0]),Math.abs(s.mx[0])),(s.mn[1]+s.mx[1])/2,(s.mn[2]+s.mx[2])/2,s,k)}
 for(let i=0;i<s.c;i++){const o=s.off+i*12;let x=dv.getFloat32(o,true),y=dv.getFloat32(o+4,true),z=dv.getFloat32(o+8,true);let r;
-if(s.shoe){const q=x<0?0:1;r=[cx[q]+(x-cx[q])*k.shoe,y*k.shoe+(k.mode==='hip'?H*(1-k.leg):0),cz[q]+(z-cz[q])*k.shoe]}else if(s.head){const w=sm(y,4.43,5.10),f=1+(k.head-1)*w;r=[x*f,4.2537923+(y-4.2537923)*f,0.10685+(z-0.10685)*f]}else{r=mapPt(x,y,z,s,k);if(an)r=[an[0]+(r[0]-an[0])*k.hd,an[1]+(r[1]-an[1])*k.hd,an[2]+(r[2]-an[2])*k.hd]}
+if(s.shoe){const q=x<0?0:1;r=[cx[q]+(x-cx[q])*k.shoe,y*k.shoe+(k.mode==='hip'?H*(1-k.leg):0),cz[q]+(z-cz[q])*k.shoe]}else if(s.head){r=[hc[0]+(x-hc[0])*k.head,hc[1]+(y-hc[1])*k.head,hc[2]+(z-hc[2])*k.head]}else{r=mapPt(x,y,z,s,k);if(an)r=[an[0]+(r[0]-an[0])*k.hd,an[1]+(r[1]-an[1])*k.hd,an[2]+(r[2]-an[2])*k.hd]}
 if(Math.abs(r[0]-x)+Math.abs(r[1]-y)+Math.abs(r[2]-z)>1e-6)ch++;
 dv.setFloat32(o,r[0],true);dv.setFloat32(o+4,r[1],true);dv.setFloat32(o+8,r[2],true)}
 st.push({s,ch})}
@@ -102,7 +102,7 @@ let h='<table><tr><th>항목</th><th>값</th></tr>'+
 '<tr><td>이동한 정점</td><td>'+nch.toLocaleString()+'개</td></tr><tr><td>수정한 묶음</td><td>'+r.st.filter(x=>x.ch).length+'개</td></tr>'+
 '<tr><td>전체 높이</td><td>'+(b0[1][1]-b0[0][1]).toFixed(3)+' → '+(b1[1][1]-b1[0][1]).toFixed(3)+'</td></tr>'+
 '<tr><td>전체 폭</td><td>'+(b0[1][0]-b0[0][0]).toFixed(3)+' → '+(b1[1][0]-b1[0][0]).toFixed(3)+'</td></tr></table>'+
-'<p class="m">면(삼각형), UV, 변위(morph) 데이터는 수정하지 않습니다. 정점 위치만 변경하며 법선은 재계산하지 않고 원본 값을 유지합니다. 뼈대 데이터도 수정하지 않습니다. 머리 분류는 base_lodB.ebo의 정점 수 733개와 위치 offset 51512를 함께 확인합니다.</p>';
+'<p class="m">면(삼각형), UV, 변위(morph) 데이터는 수정하지 않습니다. 정점 위치만 변경하며 법선은 재계산하지 않고 원본 값을 유지합니다. 뼈대 데이터도 수정하지 않습니다. 머리 분류는 base_lodB.ebo의 정점 수 733개와 위치 offset 51512를 함께 확인합니다. 머리 확대는 bounding-box 중심을 고정해 적용합니다.</p>';
 $('rep').innerHTML=h;draw(o0,o1)}
 function draw(o0,o1){const c=$('cv'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);const sc=c.height/(7.2),ox=c.width/2,oy=c.height-18;
 const dot=(dv,col)=>{g.fillStyle=col;for(const s of SH)for(let i=0;i<s.c;i++){const x=dv.getFloat32(s.off+i*12,true),y=dv.getFloat32(s.off+i*12+4,true);g.fillRect(ox+x*sc*0.62,oy-y*sc,1.6,1.6)}};
