@@ -110,7 +110,7 @@ dot(o0,'rgba(130,140,155,.55)');dot(o1,'rgba(37,99,235,.9)')}
 NL.forEach(n=>{$(n).addEventListener('input',()=>{$(n+'N').value=$(n).value;update()});$(n+'N').addEventListener('input',()=>{const v=parseFloat($(n+'N').value);if(!isNaN(v))$(n).value=v;update()})});$('mode').addEventListener('change',update);
 const DEF={shoe:1.2,leg:1,arm:0.9,comp:0.5,ah:0,sh:0,sw:1,pv:-0.3,hd:1.3,head:1,el:0,tl:0.92,tw:1.2,sx:0.2,ta:1.2,tg:1.2},NEU={shoe:1,leg:1,arm:1,comp:0.5,ah:0,sh:0,sw:1,pv:0,hd:1,head:1,el:0,tl:0.8,tw:1,sx:0,ta:1,tg:1};
 function setAll(df,md){NL.forEach(n=>{$(n).value=df[n];$(n+'N').value=df[n]});$('mode').value=md;update()}
-$('rs').onclick=()=>setAll(NEU,'pelvis');$('nt').onclick=()=>setAll(NEU,'pelvis');
+$('rs').onclick=()=>setAll(DEF,'pelvis');$('nt').onclick=()=>setAll(NEU,'pelvis');
 setAll(DEF,'pelvis');
 $('f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>load(r.result);r.readAsArrayBuffer(f)};
 $('dl').onclick=()=>{const k=K();const b=new Blob([window.__out],{type:'application/octet-stream'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='base_lodB_head_mod.ebo';a.click()};
