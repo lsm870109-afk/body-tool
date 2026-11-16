@@ -15,8 +15,7 @@
 import struct
 import os
 from System.Windows.Forms import OpenFileDialog, DialogResult
-from System import Array, Byte
-from System.IO import FileStream, FileMode, FileAccess, FileShare
+from System.IO import File
 
 def u16(data, off):
     if off < 0 or off + 2 > len(data):
@@ -93,21 +92,9 @@ def scan_strings(data, start, end, min_len):
     return found
 
 def inspect(path):
-    # Read through a .NET FileStream. Do not encode the unicode path.
-    stream = FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)
-    try:
-        length = int(stream.Length)
-        raw = Array[Byte](length)
-        read_total = 0
-        while read_total < length:
-            n = stream.Read(raw, read_total, length - read_total)
-            if n <= 0:
-                break
-            read_total += n
-        if read_total != length:
-            raise IOError("Incomplete read: %d of %d bytes" % (read_total, length))
-    finally:
-        stream.Close()
+    # OpenFileDialog supplies a CLR System.String path.
+    # File.ReadAllBytes returns a real System.Byte[] directly.
+    raw = File.ReadAllBytes(path)
     # Convert the CLR byte[] to an integer-indexed Python bytearray for parsing.
     data = bytearray(raw)
 
