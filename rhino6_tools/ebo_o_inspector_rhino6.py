@@ -81,9 +81,79 @@ def inspect_ebo(data):
         print('File is shorter than this sample-specific candidate block.')
     print('Full EBO chunk decoding and safe export are NOT implemented.')
 
+
+def cstr(data, off):
+    if off < 0 or off >= len(data):
+        return ''
+    end = data.find('\x00', off)
+    if end < 0:
+        end = len(data)
+    return data[off:end]
+
+def inspect_elf32(data):
+    print('')
+    print('===== ELF32 SECTION TABLE =====')
+    if len(data) < 52 or data[:4] != '\x7fELF':
+        print('Not an ELF32 file (or header is too short).')
+        return
+    ident = [ord(x) for x in data[4:16]]
+    if ident[0] != 1:
+        print('ELF class is not 32-bit.')
+        return
+    if ident[1] != 1:
+        print('ELF is not little-endian; this reader currently supports little-endian only.')
+        return
+    fields = struct.unpack_from('<HHIIIIIHHHHHH', data, 16)
+    e_type, e_machine, e_version, e_entry, e_phoff, e_shoff, e_flags, e_ehsize, e_phentsize, e_phnum, e_shentsize, e_shnum, e_shstrndx = fields
+    print('ELF class: 32-bit, endian: little')
+    print('Type: %d (%s)' % (e_type, 'REL relocatable' if e_type == 1 else 'other'))
+    print('Machine: %d (%s)' % (e_machine, 'MIPS' if e_machine == 8 else 'other'))
+    print('Section table: offset=0x%X entry_size=%d count=%d name_table_index=%d' %
+          (e_shoff, e_shentsize, e_shnum, e_shstrndx))
+    if e_shentsize < 40 or e_shnum <= 0:
+        print('Invalid or unsupported ELF32 section table dimensions.')
+        return
+    table_end = e_shoff + e_shentsize * e_shnum
+    if e_shoff < 0 or table_end > len(data):
+        print('Section table extends outside the file.')
+        return
+    raw = []
+    for i in range(e_shnum):
+        p = e_shoff + i * e_shentsize
+        sh = struct.unpack_from('<IIIIIIIIII', data, p)
+        raw.append(sh)
+    if e_shstrndx >= len(raw):
+        print('Section-name string table index is out of range.')
+        return
+    str_sh = raw[e_shstrndx]
+    str_off, str_size = str_sh[4], str_sh[5]
+    if str_off + str_size > len(data):
+        print('Section-name string table extends outside the file.')
+        return
+    shstr = data[str_off:str_off + str_size]
+    type_names = {0:'NULL', 1:'PROGBITS', 2:'SYMTAB', 3:'STRTAB',
+                  4:'RELA', 5:'HASH', 6:'DYNAMIC', 7:'NOTE',
+                  8:'NOBITS', 9:'REL', 10:'SHLIB', 11:'DYNSYM'}
+    for i, sh in enumerate(raw):
+        name = cstr(shstr, sh[0])
+        stype = type_names.get(sh[1], 'TYPE_%d' % sh[1])
+        off, size = sh[4], sh[5]
+        valid = (sh[1] == 8) or (off + size <= len(data))
+        print('[%d] %s type=%s flags=0x%X offset=0x%X size=0x%X (%d) link=%d info=%d align=%d entsize=%d %s' %
+              (i, name if name else '<unnamed>', stype, sh[2], off, size, size,
+               sh[6], sh[7], sh[8], sh[9], 'OK' if valid else 'OUT_OF_RANGE'))
+        if name == 'InterleavedVertices' and valid and size:
+            print('    InterleavedVertices section preview (first 96 bytes):')
+            for q in range(off, min(off + 96, off + size), 16):
+                print('    %08X  %s' % (q, hx(data, q, 16)))
+    print('ELF section parsing is read-only; vertex record interpretation is still pending.')
+
 def inspect_o(data):
     print('')
     print('===== O FILE CHECK =====')
+    if len(data) >= 4 and data[:4] == '\\x7fELF':
+        inspect_elf32(data)
+        return
     print('Previously examined .o sample contained a 40-byte vertex record:')
     print('XYZ float32 at +0, unknown +12, normal float32 at +16,')
     print('unknown/marker +28, UV float32 at +32.')
