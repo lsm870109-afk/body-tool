@@ -96,7 +96,9 @@ def inspect(path):
     # Rhino 6 IronPython may return a unicode path from OpenFileName.
     # Python's built-in open() can fail on that path; .NET handles it safely.
     raw = File.ReadAllBytes(String(path))
-    # Keep the file as an integer-indexed bytearray. In IronPython 2.7,\n    # indexing a byte string returns a one-character string, not an integer.\n    data = bytearray(raw)
+    # Keep the file as an integer-indexed bytearray.
+    # In IronPython 2.7, byte-string indexing returns a one-character string.
+    data = bytearray(raw)
 
     size = len(data)
     print("")
@@ -105,7 +107,7 @@ def inspect(path):
     print("FILE: %s" % repr(path))
     print("SIZE: %d bytes / 0x%X" % (size, size))
 
-    if size < 0x40 or data[:4] != "EBO\x00":
+    if size < 0x40 or data[:4] != bytearray((69, 66, 79, 0)):
         print("ERROR: Not a recognized EBO header.")
         return
 
