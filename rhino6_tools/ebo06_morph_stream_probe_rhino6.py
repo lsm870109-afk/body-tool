@@ -14,7 +14,7 @@
 
 import struct
 import os
-import rhinoscriptsyntax as rs
+from System.Windows.Forms import OpenFileDialog, DialogResult
 from System.IO import FileStream, FileMode, FileAccess, FileShare
 
 def u16(data, off):
@@ -204,11 +204,17 @@ def inspect(path):
     print("=" * 76)
 
 def main():
-    path = rs.OpenFileName("Select NBA Live 06 character EBO",
-                           "EBO files (*.ebo)|*.ebo||")
-    if not path:
+    # Use the .NET dialog so FileName is a CLR System.String, not
+    # a Python unicode value returned by rhinoscriptsyntax.
+    dlg = OpenFileDialog()
+    dlg.Title = "Select NBA Live 06 character EBO"
+    dlg.Filter = "EBO files (*.ebo)|*.ebo|All files (*.*)|*.*"
+    dlg.Multiselect = False
+    result = dlg.ShowDialog()
+    if result != DialogResult.OK:
         print("Cancelled.")
         return
+    path = dlg.FileName
     try:
         inspect(path)
     except Exception as e:
