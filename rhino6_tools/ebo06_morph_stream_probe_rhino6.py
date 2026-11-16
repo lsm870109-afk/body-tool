@@ -15,6 +15,7 @@
 import struct
 import os
 import rhinoscriptsyntax as rs
+from System.IO import File
 
 def u16(data, off):
     if off < 0 or off + 2 > len(data):
@@ -91,17 +92,16 @@ def scan_strings(data, start, end, min_len):
     return found
 
 def inspect(path):
-    f = open(path, "rb")
-    try:
-        data = f.read()
-    finally:
-        f.close()
+    # Rhino 6 IronPython may return a unicode path from OpenFileName.
+    # Python's built-in open() can fail on that path; .NET handles it safely.
+    raw = File.ReadAllBytes(path)
+    data = "".join([chr(b) for b in raw])
 
     size = len(data)
     print("")
     print("=" * 76)
     print("NBA LIVE 06 MORPH STREAM PROBE - READ ONLY")
-    print("FILE: %s" % path)
+    print("FILE: %s" % repr(path))
     print("SIZE: %d bytes / 0x%X" % (size, size))
 
     if size < 0x40 or data[:4] != "EBO\x00":
