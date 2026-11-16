@@ -194,15 +194,24 @@ def main():
         report.append('Normal agreement is sign-only: positive/negative counts are not a final winding verdict.')
         report.append('')
 
-        for skip in (0, 4):
-            indices = list(struct.unpack_from('<%dH' % icount, d, idx_data+skip))
-            if min(indices) >= vcount or max(indices) >= vcount:
-                report.append('offset+%d: OUT OF RANGE; skipped' % skip)
+        # The index descriptor reports 4024 payload bytes = 2012 uint16 values.
+        # Geometry +0xC8 is 2010, which may be strip triangle count (index_count - 2).
+        # Test the complete payload from byte offset 0 as the primary candidate.
+        full_index_count = 4024 // 2
+        full_indices = list(struct.unpack_from('<%dH' % full_index_count, d, idx_data))
+        report.append('Full payload: %d uint16 indices; strip potential triangles=%d' %
+                      (full_index_count, full_index_count-2))
+        report.append('Geometry field +0xC8=%d; compare with full-payload strip triangles.' % icount)
+        report.append('')
+        for label, indices in (('payload+0 / all 2012', full_indices),
+                               ('payload+4 / first 2010 of shifted data', full_indices[2:])):
+            if min(indices) < 0 or max(indices) >= vcount:
+                report.append(label + ': OUT OF RANGE; skipped')
                 continue
             for mode in ('strip', 'list'):
                 faces, degenerate = make_faces(indices, mode)
                 stats = analyze(faces, positions, normals)
-                report.extend(fmt('offset+%d / %s' % (skip, mode), stats,
+                report.extend(fmt(label + ' / ' + mode, stats,
                                   degenerate, min(indices), max(indices)))
 
         report_path = os.path.join(out_dir, 'headAShape_topology_report.txt')
