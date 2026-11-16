@@ -44,28 +44,43 @@ def owner_start(ranges, off):
             return s
     return -1
 
+def validate_mapping_record(d, off, ranges):
+    if off < 0 or off+24 > len(d):
+        return None
+    logical=u32(d,off)
+    one=u32(d,off+4)
+    rendered=u32(d,off+8)
+    pos=u32(d,off+12)
+    mp=u32(d,off+16)
+    vb=u32(d,off+20)
+    if logical != 573 or one != 1 or rendered < 3 or rendered > 5000:
+        return None
+    if mp > len(d)-rendered*2 or pos > len(d)-rendered*12 or vb+12 > len(d):
+        return None
+    if u32(d,vb+4) != 12 or u32(d,vb) != rendered*12 or u32(d,vb+8) != pos:
+        return None
+    vals=[u16(d,mp+i*2) for i in range(rendered)]
+    if min(vals) != 0 or max(vals) != 572 or len(set(vals)) != 573:
+        return None
+    return (off,logical,rendered,pos,mp,owner_start(ranges,off),vals)
+
 def find_head_mapping(d):
     ranges=chunk_ranges(d)
     found=[]
     for off in range(0,len(d)-24,4):
-        logical=u32(d,off)
-        one=u32(d,off+4)
-        rendered=u32(d,off+8)
-        pos=u32(d,off+12)
-        mp=u32(d,off+16)
-        vb=u32(d,off+20)
-        if logical != 573 or one != 1 or rendered != 733:
-            continue
-        if mp > len(d)-rendered*2 or pos > len(d)-rendered*12 or vb+12 > len(d):
-            continue
-        if u32(d,vb+4) != 12 or u32(d,vb) != rendered*12 or u32(d,vb+8) != pos:
-            continue
-        vals=[u16(d,mp+i*2) for i in range(rendered)]
-        if min(vals) != 0 or max(vals) != 572 or len(set(vals)) != 573:
-            continue
-        found.append((off,logical,rendered,pos,mp,owner_start(ranges,off),vals))
+        item=validate_mapping_record(d,off,ranges)
+        if item is not None:
+            found.append(item)
+
+    # V13/V14 already verified this exact record in the user's base_lodB.ebo.
+    # Use it as a guarded fallback if Rhino's scan behaves differently.
+    if not found:
+        item=validate_mapping_record(d,0x102B8,ranges)
+        if item is not None:
+            found.append(item)
+
     if len(found) != 1:
-        raise ValueError('Expected exactly one 573 -> 733 head mapping; found %d' % len(found))
+        raise ValueError('Head mapping not uniquely identified. Valid 573-logical mapping records=%d; file size=%d. Confirm this is the same base_lodB.ebo previously tested by V14.' % (len(found),len(d)))
     return found[0]
 
 def main():
@@ -95,11 +110,11 @@ def main():
             raise ValueError('Non-finite position at rendered vertex %d' % i)
         points.Add(Rhino.Geometry.Point3d(x,y,z))
 
-    if points.Count != 733 or not finite:
-        raise ValueError('PointCloud validation failed: count=%d finite=%s' % (points.Count,str(finite)))
+    if points.Count != rendered or not finite:
+        raise ValueError('PointCloud validation failed: count=%d expected=%d finite=%s' % (points.Count,rendered,str(finite)))
 
     attr=Rhino.DocObjects.ObjectAttributes()
-    attr.Name='NBA06_headAShape_733_rendered_points'
+    attr.Name='NBA06_headAShape_%d_rendered_points' % rendered
     attr.SetUserString('SourceFile', path)
     attr.SetUserString('LogicalVertices', str(logical))
     attr.SetUserString('RenderedVertices', str(rendered))
