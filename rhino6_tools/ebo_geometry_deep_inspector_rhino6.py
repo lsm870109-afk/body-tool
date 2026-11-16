@@ -200,12 +200,25 @@ def main():
         if exports is None:
             return
         found = []
+        morphs = []
         for typ, name, target in exports:
-            if name.lower() == 'headashape' or ('head' in name.lower() and 'shape' in name.lower()):
+            low_type = typ.lower()
+            low_name = name.lower()
+            if low_type == 'geometry' and (low_name == 'headashape' or ('head' in low_name and 'shape' in low_name)):
                 found.append((name, target))
+            elif low_type == 'morph' or 'morph' in low_name:
+                morphs.append((name, target))
+        if morphs:
+            print('')
+            print('[MORPH EXPORTS DETECTED]')
+            for name, target in morphs:
+                print('  %s @ 0x%X' % (name, target))
+            print('  This is a Morph resource, not base Geometry. It will NOT be parsed as Geometry.')
         if not found:
             print('')
-            print('No head*Shape export found. Available exports are listed above.')
+            print('No head Geometry export found.')
+            print('Select the base player Geometry EBO (for example base_lodB.ebo),')
+            print('not a *_morphs EBO such as aliversB.ebo.')
         for name, target in found:
             inspect_geometry(d, target, name)
         # Scan the region beginning at the first head geometry through the file end.
