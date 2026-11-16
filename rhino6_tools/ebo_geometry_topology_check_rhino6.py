@@ -206,7 +206,7 @@ def main():
                                   degenerate, min(indices), max(indices)))
 
         report_path = os.path.join(out_dir, 'headAShape_topology_report.txt')
-        write_text(report_path, '\\n'.join(report)+'\\n')
+        write_text(report_path, '\n'.join(report)+'\n')
         print('')
         print('===== TOPOLOGY CHECK COMPLETE =====')
         print('Report: %s' % report_path)
