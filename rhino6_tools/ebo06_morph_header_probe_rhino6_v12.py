@@ -19,10 +19,10 @@ def i32(d, o):
 def cstr(d, o):
     if o < 0 or o >= len(d):
         raise ValueError('string offset outside file')
-    e = d.find('\0', o)
+    e = d.find(0, o)
     if e < 0:
         raise ValueError('unterminated string')
-    return d[o:e]
+    return bytes(d[o:e])
 
 def chunk_ranges(d):
     start = u32(d, 0x10)
@@ -77,7 +77,7 @@ def scan_coord_headers(d, start, end):
                 name = cstr(d, strings + rel)
             except:
                 name = ''
-            if name == 'coord':
+            if name == b'coord':
                 fields = struct.unpack_from('<10I', d, p)
                 size, payload, aux = fields[3], fields[4], fields[5]
                 valid = (payload <= len(d) and size <= len(d) - payload)
@@ -87,12 +87,12 @@ def scan_coord_headers(d, start, end):
     return found
 
 def dump_file(path):
-    d = File.ReadAllBytes(path)
+    d = bytearray(File.ReadAllBytes(path))
     print('')
     print('=' * 78)
     print('FILE: %s' % str(path))
     print('SIZE=%d MAGIC=%s VERSION=%d' % (len(d), ' '.join('%02X'%x for x in d[:4]), u32(d,4)))
-    if len(d) < 0x60 or d[:4] != 'EBO\0':
+    if len(d) < 0x60 or d[:4] != bytearray([69,66,79,0]):
         print('ERROR: not a supported EBO v17 container')
         return
     print('CHUNKS_OFFSET=0x%X USD=0x%X IMPORTS=0x%X EXPORTS=0x%X STRINGS=0x%X' %
@@ -103,19 +103,19 @@ def dump_file(path):
         print('  CHUNK[%d] 0x%X..0x%X SIZE=%d' % (i,s,e,e-s))
 
     exports = read_exports(d, ranges)
-    morphs = [x for x in exports if x[0] == 'Morph']
-    geos = [x for x in exports if x[0] == 'Geometry']
+    morphs = [x for x in exports if x[0] == b'Morph']
+    geos = [x for x in exports if x[0] == b'Geometry']
     print('EXPORTS: Geometry=%d Morph=%d' % (len(geos),len(morphs)))
     for typ,name,p,target,owner in geos:
         if owner:
             print('  GEO %s export=0x%X target=0x%X chunk=0x%X..0x%X' %
                   (name,p,target,owner[0],owner[1]))
     for typ,name,p,target,owner in morphs:
-        print('')
         if not owner:
             print('  MORPH %s export=0x%X target=0x%X OWNER=NOT_FOUND' % (name,p,target))
             continue
         s,e=owner
+        print('')
         print('  MORPH %s export=0x%X target=0x%X chunk=0x%X..0x%X' %
               (name,p,target,s,e))
         headers=scan_coord_headers(d,s,e)
