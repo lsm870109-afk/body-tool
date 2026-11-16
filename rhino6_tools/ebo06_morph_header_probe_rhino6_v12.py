@@ -19,10 +19,10 @@ def i32(d, o):
 def cstr(d, o):
     if o < 0 or o >= len(d):
         raise ValueError('string offset outside file')
-    e = d.find(bytearray([0]), o)
+    e = d.find('\x00', o)
     if e < 0:
         raise ValueError('unterminated string')
-    return bytes(d[o:e])
+    return d[o:e]
 
 def chunk_ranges(d):
     start = u32(d, 0x10)
@@ -87,12 +87,14 @@ def scan_coord_headers(d, start, end):
     return found
 
 def dump_file(path):
-    d = bytearray(File.ReadAllBytes(path))
+    raw = File.ReadAllBytes(path)
+    # IronPython 2.7 struct module expects a byte string, not bytearray/.NET byte[].
+    d = ''.join(chr(int(x)) for x in raw)
     print('')
     print('=' * 78)
     print('FILE: %s' % str(path))
     print('SIZE=%d MAGIC=%s VERSION=%d' % (len(d), ' '.join('%02X'%x for x in d[:4]), u32(d,4)))
-    if len(d) < 0x60 or d[:4] != bytearray([69,66,79,0]):
+    if len(d) < 0x60 or d[:4] != 'EBO\x00':
         print('ERROR: not a supported EBO v17 container')
         return
     print('CHUNKS_OFFSET=0x%X USD=0x%X IMPORTS=0x%X EXPORTS=0x%X STRINGS=0x%X' %
