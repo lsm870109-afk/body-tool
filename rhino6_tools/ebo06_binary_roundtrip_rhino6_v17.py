@@ -34,8 +34,8 @@ def read_ebo(path):
     if data[0] != 0x45 or data[1] != 0x42 or data[2] != 0x4F or data[3] != 0x00:
         raise Exception("Invalid EBO magic. Expected EBO\\x00.")
 
-    version = struct.unpack("<I", data[4:8])[0]
-    declared_size = struct.unpack("<I", data[8:12])[0]
+    version = BitConverter.ToUInt32(data, 4)
+    declared_size = BitConverter.ToUInt32(data, 8)
 
     return data, version, declared_size
 
