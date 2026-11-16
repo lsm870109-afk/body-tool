@@ -112,7 +112,6 @@ def inspect(path):
         return
 
     print("MAGIC bytes OK VERSION=%d SIZE_FIELD=%d" % (u32(data, 4), u32(data, 8)))
-          (u32(data, 4), u32(data, 8)))
 
     print("")
     print("-- HEADER POINTERS --")
