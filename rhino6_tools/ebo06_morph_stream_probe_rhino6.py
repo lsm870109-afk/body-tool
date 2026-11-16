@@ -15,6 +15,7 @@
 import struct
 import os
 from System.Windows.Forms import OpenFileDialog, DialogResult
+from System import Array, Byte
 from System.IO import FileStream, FileMode, FileAccess, FileShare
 
 def u16(data, off):
@@ -96,7 +97,7 @@ def inspect(path):
     stream = FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)
     try:
         length = int(stream.Length)
-        raw = bytearray(length)
+        raw = Array[Byte](length)
         read_total = 0
         while read_total < length:
             n = stream.Read(raw, read_total, length - read_total)
@@ -107,9 +108,8 @@ def inspect(path):
             raise IOError("Incomplete read: %d of %d bytes" % (read_total, length))
     finally:
         stream.Close()
-    # Keep the file as an integer-indexed bytearray.
-    # In IronPython 2.7, byte-string indexing returns a one-character string.
-    data = raw
+    # Convert the CLR byte[] to an integer-indexed Python bytearray for parsing.
+    data = bytearray(raw)
 
     size = len(data)
     print("")
