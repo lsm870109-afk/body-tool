@@ -7,10 +7,7 @@ from System.Windows.Forms import OpenFileDialog, DialogResult
 from System.IO import File
 
 def byte_value(d, o):
-    v = d[o]
-    if isinstance(v, int):
-        return v
-    return ord(v)
+    return int(d[o])
 
 def u16(d, o):
     return byte_value(d, o) | (byte_value(d, o + 1) << 8)
@@ -30,10 +27,15 @@ def i32(d, o):
 def cstr(d, o):
     if o < 0 or o >= len(d):
         raise ValueError('string offset outside file')
-    e = d.find(bytearray([0]), o)
-    if e < 0:
-        raise ValueError('unterminated string')
-    return ''.join(chr(int(x)) for x in d[o:e])
+    chars = []
+    p = o
+    while p < len(d):
+        v = byte_value(d, p)
+        if v == 0:
+            return ''.join(chars)
+        chars.append(chr(v))
+        p += 1
+    raise ValueError('unterminated string')
 
 def chunk_ranges(d):
     start = u32(d, 0x10)
@@ -65,7 +67,8 @@ def read_exports(d, ranges):
         p = exports + i * 12
         if p + 12 > len(d):
             break
-        tr, nr = struct.unpack_from('<II', d, p)
+        tr = u32(d, p)
+        nr = u32(d, p + 4)
         dr = i32(d, p + 8)
         try:
             typ = cstr(d, strings + tr)
@@ -88,7 +91,7 @@ def scan_coord_headers(d, start, end):
                 name = cstr(d, strings + rel)
             except:
                 name = ''
-            if name == b'coord':
+            if name == 'coord':
                 fields = tuple(u32(d, p + j * 4) for j in range(10))
                 size, payload, aux = fields[3], fields[4], fields[5]
                 valid = (payload <= len(d) and size <= len(d) - payload)
@@ -98,12 +101,12 @@ def scan_coord_headers(d, start, end):
     return found
 
 def dump_file(path):
-    d = bytearray(File.ReadAllBytes(path))
+    d = File.ReadAllBytes(path)
     print('')
     print('=' * 78)
     print('FILE: %s' % str(path))
-    print('SIZE=%d MAGIC=%s VERSION=%d' % (len(d), ' '.join('%02X'%x for x in d[:4]), u32(d,4)))
-    if len(d) < 0x60 or d[:4] != bytearray([69,66,79,0]):
+    print('SIZE=%d MAGIC=%s VERSION=%d' % (len(d), ' '.join('%02X'%byte_value(d,i) for i in range(4)), u32(d,4)))
+    if len(d) < 0x60 or not (byte_value(d,0) == 69 and byte_value(d,1) == 66 and byte_value(d,2) == 79 and byte_value(d,3) == 0):
         print('ERROR: not a supported EBO v17 container')
         return
     print('CHUNKS_OFFSET=0x%X USD=0x%X IMPORTS=0x%X EXPORTS=0x%X STRINGS=0x%X' %
@@ -114,8 +117,8 @@ def dump_file(path):
         print('  CHUNK[%d] 0x%X..0x%X SIZE=%d' % (i,s,e,e-s))
 
     exports = read_exports(d, ranges)
-    morphs = [x for x in exports if x[0] == b'Morph']
-    geos = [x for x in exports if x[0] == b'Geometry']
+    morphs = [x for x in exports if x[0] == 'Morph']
+    geos = [x for x in exports if x[0] == 'Geometry']
     print('EXPORTS: Geometry=%d Morph=%d' % (len(geos),len(morphs)))
     for typ,name,p,target,owner in geos:
         if owner:
@@ -142,10 +145,10 @@ def dump_file(path):
                     n=u32(d,aux-4)
                     print('    AUX_MINUS_4_DWORD=%d (0x%X)' % (n,n))
                     if aux+n <= len(d):
-                        print('    AUX_BYTES_FIRST32=' + ' '.join('%02X'%x for x in d[aux:aux+min(32,n)]))
+                        print('    AUX_BYTES_FIRST32=' + ' '.join('%02X'%byte_value(d,j) for j in range(aux,aux+min(32,n))))
             if size <= 100000 and payload+size <= len(d):
-                print('    PAYLOAD_FIRST32=' + ' '.join('%02X'%x for x in d[payload:payload+min(32,size)]))
-                print('    PAYLOAD_LAST16 =' + ' '.join('%02X'%x for x in d[max(payload,payload+size-16):payload+size]))
+                print('    PAYLOAD_FIRST32=' + ' '.join('%02X'%byte_value(d,j) for j in range(payload,payload+min(32,size))))
+                print('    PAYLOAD_LAST16 =' + ' '.join('%02X'%byte_value(d,j) for j in range(max(payload,payload+size-16),payload+size)))
             if aux == 0:
                 print('    CLASSIFICATION=DENSE_CANDIDATE')
             else:
