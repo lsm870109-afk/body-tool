@@ -19,7 +19,7 @@ def i32(d, o):
 def cstr(d, o):
     if o < 0 or o >= len(d):
         raise ValueError('string offset outside file')
-    e = d.find(0, o)
+    e = d.find(bytearray([0]), o)
     if e < 0:
         raise ValueError('unterminated string')
     return bytes(d[o:e])
