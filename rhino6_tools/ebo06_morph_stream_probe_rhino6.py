@@ -15,6 +15,7 @@
 import struct
 import os
 import rhinoscriptsyntax as rs
+from System import String
 from System.IO import File
 
 def u16(data, off):
@@ -94,8 +95,8 @@ def scan_strings(data, start, end, min_len):
 def inspect(path):
     # Rhino 6 IronPython may return a unicode path from OpenFileName.
     # Python's built-in open() can fail on that path; .NET handles it safely.
-    raw = File.ReadAllBytes(path)
-    data = "".join([chr(b) for b in raw])
+    raw = File.ReadAllBytes(String(path))
+    # Keep the file as an integer-indexed bytearray. In IronPython 2.7,\n    # indexing a byte string returns a one-character string, not an integer.\n    data = bytearray(raw)
 
     size = len(data)
     print("")
@@ -198,7 +199,7 @@ def main():
     try:
         inspect(path)
     except Exception as e:
-        print("PROBE ERROR: %s" % str(e))
+        print("PROBE ERROR: %s" % repr(e))
         raise
 
 if __name__ == "__main__":
