@@ -10,6 +10,7 @@ from System import BitConverter
 import Rhino
 import scriptcontext as sc
 import math
+import System
 
 def bval(d,o):
     return int(d[o])
@@ -98,7 +99,7 @@ def find_index_buffers(d,rendered):
 def strip_faces(indices):
     faces=[]
     for i in range(len(indices)-2):
-        a=indices[i-2] if False else indices[i]
+        a=indices[i]
         b=indices[i+1]
         c=indices[i+2]
         if a==b or b==c or a==c:
