@@ -15,6 +15,7 @@
 import struct
 import os
 import rhinoscriptsyntax as rs
+from System.IO import FileStream, FileMode, FileAccess, FileShare
 
 def u16(data, off):
     if off < 0 or off + 2 > len(data):
@@ -91,19 +92,24 @@ def scan_strings(data, start, end, min_len):
     return found
 
 def inspect(path):
-    # Rhino 6 IronPython may return a unicode path from OpenFileName.
-    # Python's built-in open() can fail on that path; .NET handles it safely.
-    # Convert the dialog's unicode path to Windows' active code page for
-    # Python 2 binary open(). The current sample path is ASCII-compatible.
-    file_path = path.encode("mbcs") if isinstance(path, unicode) else path
-    f = open(file_path, "rb")
+    # Read through a .NET FileStream. Do not encode the unicode path.
+    stream = FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)
     try:
-        raw = f.read()
+        length = int(stream.Length)
+        raw = bytearray(length)
+        read_total = 0
+        while read_total < length:
+            n = stream.Read(raw, read_total, length - read_total)
+            if n <= 0:
+                break
+            read_total += n
+        if read_total != length:
+            raise IOError("Incomplete read: %d of %d bytes" % (read_total, length))
     finally:
-        f.close()
+        stream.Close()
     # Keep the file as an integer-indexed bytearray.
     # In IronPython 2.7, byte-string indexing returns a one-character string.
-    data = bytearray(raw)
+    data = raw
 
     size = len(data)
     print("")
@@ -206,7 +212,10 @@ def main():
     try:
         inspect(path)
     except Exception as e:
+        import traceback
+        print("PROBE ERROR TYPE: %s" % type(e).__name__)
         print("PROBE ERROR: %s" % repr(e))
+        traceback.print_exc()
         raise
 
 if __name__ == "__main__":
