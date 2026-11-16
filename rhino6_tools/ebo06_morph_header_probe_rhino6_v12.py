@@ -3,26 +3,37 @@
 # Rhino 6 / IronPython 2.7
 # READ ONLY. Select base_lodB.ebo and one or more player B EBO files.
 
-import struct
 from System.Windows.Forms import OpenFileDialog, DialogResult
 from System.IO import File
 
+def byte_value(d, o):
+    v = d[o]
+    if isinstance(v, int):
+        return v
+    return ord(v)
+
 def u16(d, o):
-    return struct.unpack_from('<H', d, o)[0]
+    return byte_value(d, o) | (byte_value(d, o + 1) << 8)
 
 def u32(d, o):
-    return struct.unpack_from('<I', d, o)[0]
+    return (byte_value(d, o) |
+            (byte_value(d, o + 1) << 8) |
+            (byte_value(d, o + 2) << 16) |
+            (byte_value(d, o + 3) << 24))
 
 def i32(d, o):
-    return struct.unpack_from('<i', d, o)[0]
+    v = u32(d, o)
+    if v >= 0x80000000:
+        v -= 0x100000000
+    return v
 
 def cstr(d, o):
     if o < 0 or o >= len(d):
         raise ValueError('string offset outside file')
-    e = d.find('\x00', o)
+    e = d.find(bytearray([0]), o)
     if e < 0:
         raise ValueError('unterminated string')
-    return d[o:e]
+    return ''.join(chr(int(x)) for x in d[o:e])
 
 def chunk_ranges(d):
     start = u32(d, 0x10)
@@ -78,7 +89,7 @@ def scan_coord_headers(d, start, end):
             except:
                 name = ''
             if name == b'coord':
-                fields = struct.unpack_from('<10I', d, p)
+                fields = tuple(u32(d, p + j * 4) for j in range(10))
                 size, payload, aux = fields[3], fields[4], fields[5]
                 valid = (payload <= len(d) and size <= len(d) - payload)
                 if fields[6] == 1 and fields[7] == 0x3F800000 and valid:
@@ -87,14 +98,12 @@ def scan_coord_headers(d, start, end):
     return found
 
 def dump_file(path):
-    raw = File.ReadAllBytes(path)
-    # IronPython 2.7 struct module expects a byte string, not bytearray/.NET byte[].
-    d = ''.join(chr(int(x)) for x in raw)
+    d = bytearray(File.ReadAllBytes(path))
     print('')
     print('=' * 78)
     print('FILE: %s' % str(path))
     print('SIZE=%d MAGIC=%s VERSION=%d' % (len(d), ' '.join('%02X'%x for x in d[:4]), u32(d,4)))
-    if len(d) < 0x60 or d[:4] != 'EBO\x00':
+    if len(d) < 0x60 or d[:4] != bytearray([69,66,79,0]):
         print('ERROR: not a supported EBO v17 container')
         return
     print('CHUNKS_OFFSET=0x%X USD=0x%X IMPORTS=0x%X EXPORTS=0x%X STRINGS=0x%X' %
