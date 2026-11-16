@@ -106,12 +106,12 @@ def inspect(path):
         return
 
     magic = raw_string(data, 0, 4)
-    if magic != "EBO\\x00":
+    if tuple(int(data[i]) for i in range(4)) != (69, 66, 79, 0):
         print("ERROR: Not a recognized EBO header. First bytes: %s" %
               " ".join("%02X" % int(data[i]) for i in range(4)))
         return
 
-    print("MAGIC=EBO\\0 VERSION=%d SIZE_FIELD=%d" %
+    print("MAGIC bytes OK VERSION=%d SIZE_FIELD=%d" % (u32(data, 4), u32(data, 8)))
           (u32(data, 4), u32(data, 8)))
 
     print("")
