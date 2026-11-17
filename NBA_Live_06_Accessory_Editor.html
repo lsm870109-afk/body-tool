@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NBA Live 06 액세서리 EBO 편집기</title>
+<style>
+:root{color-scheme:light dark;--bg:#f4f4f1;--fg:#20201e;--card:#fff;--mut:#666;--bd:#d8d8d2;--accent:#2456c5}
+@media(prefers-color-scheme:dark){:root{--bg:#171716;--fg:#eee;--card:#242422;--mut:#aaa;--bd:#41413c;--accent:#8ab0ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif}
+main{max-width:1050px;margin:auto;padding:18px 14px 50px}h1{font-size:21px;margin:0 0 4px}.sub,.mut{color:var(--mut)}.sub{margin:0 0 16px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:14px}
+section{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+h2{font-size:15px;margin:0 0 10px}canvas{width:100%;height:430px;display:block;background:#171b22;border-radius:8px;touch-action:none}
+input,select,button{font:inherit}input[type=file]{max-width:100%}input[type=number]{width:100%;padding:7px;border:1px solid var(--bd);border-radius:7px;background:var(--bg);color:var(--fg)}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}.triple{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+button{border:1px solid var(--accent);background:var(--accent);color:white;border-radius:8px;padding:8px 12px;cursor:pointer}
+button.secondary{background:transparent;color:var(--fg);border-color:var(--bd)}button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.status{white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace;margin-top:8px}
+.warn{border-left:3px solid #c58b22;padding:8px 10px;background:color-mix(in srgb,#c58b22 10%,transparent);border-radius:4px;font-size:12px}
+small{color:var(--mut)}@media(max-width:760px){.grid{grid-template-columns:1fr}canvas{height:340px}}
+</style>
+</head>
+<body><main>
+<h1>NBA Live 06 액세서리 EBO 편집기</h1>
+<p class="sub">고글·헤어·헤드밴드 1차 지원. 파일은 브라우저 안에서 처리되며 서버로 업로드되지 않습니다.</p>
+<section>
+<h2>① EBO 파일 불러오기</h2>
+<div class="row"><input id="file" type="file" accept=".ebo,.bin"><button id="reset" class="secondary" disabled>원본으로 되돌리기</button><button id="save" disabled>수정 EBO 저장</button></div>
+<div id="status" class="status mut">EBO 파일을 선택하세요.</div>
+</section>
+<div class="grid">
+<div>
+<section><h2>② 3D 점 미리보기</h2><canvas id="view" width="900" height="600"></canvas><small>마우스/손가락 드래그: 회전 · 휠/두 손가락: 확대/축소 · 점 표시 미리보기</small></section>
+</div>
+<div>
+<section><h2>③ 위치 조정</h2>
+<label>이동량 (X / Y / Z)</label><div class="triple"><input id="tx" type="number" step="0.01" value="0"><input id="ty" type="number" step="0.01" value="0"><input id="tz" type="number" step="0.01" value="0"></div>
+<label>크기 배율 (X / Y / Z)</label><div class="triple"><input id="sx" type="number" step="0.01" value="1"><input id="sy" type="number" step="0.01" value="1"><input id="sz" type="number" step="0.01" value="1"></div>
+<label>회전 각도 (X / Y / Z, 도)</label><div class="triple"><input id="rx" type="number" step="1" value="0"><input id="ry" type="number" step="1" value="0"><input id="rz" type="number" step="1" value="0"></div>
+<div class="row" style="margin-top:12px"><button id="apply" disabled>변형 적용</button><button id="zero" class="secondary" disabled>수치 초기화</button></div>
+<p class="mut" id="bounds">파일을 불러오면 정점 정보가 표시됩니다.</p>
+</section>
+<section><h2>지원 범위 / 주의</h2>
+<div class="warn">현재 1차판은 확인된 XYZ 위치 배열만 수정합니다. 법선·UV·인덱스·재질 및 기타 바이트는 보존합니다. BoundingInfo의 직렬화 구조는 아직 완전히 검증되지 않아 그대로 보존하므로, 변형 폭이 크면 게임 내 표시/컬링 결과를 반드시 확인해야 합니다.</div>
+<p class="mut">지원 프로필은 확인된 원본 샘플(brgrantB_goggle / hair / headband) 기준입니다. 다른 EBO는 자동으로 추측해 수정하지 않고 거부합니다.</p>
+</section>
+</div></div>
+</main>
+<script>
+(function(){
+'use strict';
+var profiles=[
+{name:'goggle',label:'고글',count:46,pos:0x35c,norm:0x5a0,uv:0x7e4},
+{name:'hair',label:'헤어',count:327,pos:0x590,norm:0x14e4,uv:0x2454},
+{name:'headband',label:'헤드밴드',count:167,pos:0x450,norm:0xc24,uv:0x1414}
+];
+var fileInput=document.getElementById('file'),status=document.getElementById('status'),canvas=document.getElementById('view'),ctx=canvas.getContext('2d');
+var original=null,bytes=null,profile=null,base=[],points=[],drag=null,yaw=-0.35,pitch=0.18,zoom=1;
+var $=function(id){return document.getElementById(id)};
+function u32(d,o){return d.getUint32(o,true)}
+function setEnabled(v){['reset','save','apply','zero'].forEach(function(id){$(id).disabled=!v})}
+function vecAt(d,o){return [d.getFloat32(o,true),d.getFloat32(o+4,true),d.getFloat32(o+8,true)]}
+function parse(buf){
+ var u=new Uint8Array(buf),d=new DataView(buf);
+ if(u.length<0x124||u[0]!==69||u[1]!==66||u[2]!==79||u[3]!==0||u32(d,4)!==17)throw Error('EBO v17 파일이 아닙니다.');
+ var found=null;
+ profiles.forEach(function(p){if(p.pos+p.count*12<=u.length&&p.norm===p.pos+p.count*12&&p.uv>=p.norm+p.count*12&&p.uv+p.count*8<=u.length)found=p;});
+ if(!found)throw Error('현재 확인된 고글/헤어/헤드밴드 구조와 일치하지 않습니다. 안전을 위해 수정하지 않았습니다.');
+ var pts=[];for(var i=0;i<found.count;i++){var v=vecAt(d,found.pos+i*12);if(!v.every(Number.isFinite)||v.some(function(x){return Math.abs(x)>1000}))throw Error('정점 좌표 검증 실패');pts.push(v);}
+ return {u:u,p:found,pts:pts};
+}
+function getVals(){return ['tx','ty','tz','sx','sy','sz','rx','ry','rz'].map(function(id){var v=Number($(id).value);if(!Number.isFinite(v))throw Error('변형 수치가 올바르지 않습니다.');return v;});}
+function transformed(){
+ var a=getVals(),tx=a[0],ty=a[1],tz=a[2],sx=a[3],sy=a[4],sz=a[5],rx=a[6]*Math.PI/180,ry=a[7]*Math.PI/180,rz=a[8]*Math.PI/180;
+ var c=[0,1,2].map(function(k){return base.reduce(function(s,p){return s+p[k]},0)/base.length;});
+ return base.map(function(p){var x=(p[0]-c[0])*sx,y=(p[1]-c[1])*sy,z=(p[2]-c[2])*sz;
+ var y1=y*Math.cos(rx)-z*Math.sin(rx),z1=y*Math.sin(rx)+z*Math.cos(rx);y=y1;z=z1;
+ var x1=x*Math.cos(ry)+z*Math.sin(ry),z2=-x*Math.sin(ry)+z*Math.cos(ry);x=x1;z=z2;
+ x1=x*Math.cos(rz)-y*Math.sin(rz);y1=x*Math.sin(rz)+y*Math.cos(rz);x=x1;y=y1;
+ return [x+c[0]+tx,y+c[1]+ty,z+c[2]+tz];});
+}
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#171b22';ctx.fillRect(0,0,canvas.width,canvas.height);
+ if(!points.length){ctx.fillStyle='#aab2c0';ctx.font='20px system-ui';ctx.textAlign='center';ctx.fillText('EBO 파일을 불러오세요',canvas.width/2,canvas.height/2);return;}
+ var ca=Math.cos(yaw),sa=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),proj=[];
+ points.forEach(function(p){var x=p[0],y=p[1],z=p[2],xx=x*ca-z*sa,zz=x*sa+z*ca,yy=y*cp-zz*sp,depth=y*sp+zz*cp;proj.push([xx,yy,depth]);});
+ var minX=Math.min.apply(null,proj.map(p=>p[0])),maxX=Math.max.apply(null,proj.map(p=>p[0])),minY=Math.min.apply(null,proj.map(p=>p[1])),maxY=Math.max.apply(null,proj.map(p=>p[1]));
+ var span=Math.max(maxX-minX,maxY-minY,0.01),scale=Math.min(canvas.width,canvas.height)*0.72/span*zoom,cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+ proj.sort((a,b)=>a[2]-b[2]);ctx.fillStyle='#7fc5ff';
+ proj.forEach(function(p){var x=canvas.width/2+(p[0]-cx)*scale,y=canvas.height/2-(p[1]-cy)*scale;ctx.beginPath();ctx.arc(x,y,Math.max(2,Math.min(5,scale*0.008)),0,Math.PI*2);ctx.fill();});
+ ctx.fillStyle='#d8e2f0';ctx.font='14px system-ui';ctx.textAlign='left';ctx.fillText(profile.label+' · '+profile.count+' vertices',16,24);
+}
+function update(){
+ if(!profile)return;
+ try{points=transformed();var min=[0,1,2].map(k=>Math.min.apply(null,points.map(p=>p[k]))),max=[0,1,2].map(k=>Math.max.apply(null,points.map(p=>p[k])));
+ $('bounds').textContent='정점 '+profile.count+'개 · X '+min[0].toFixed(3)+' ~ '+max[0].toFixed(3)+' · Y '+min[1].toFixed(3)+' ~ '+max[1].toFixed(3)+' · Z '+min[2].toFixed(3)+' ~ '+max[2].toFixed(3);draw();}catch(e){status.textContent=e.message;}
+}
+fileInput.addEventListener('change',function(){
+ var f=fileInput.files&&fileInput.files[0];if(!f)return;
+ f.arrayBuffer().then(function(buf){try{var parsed=parse(buf);original=buf.slice(0);bytes=parsed.u;profile=parsed.p;base=parsed.pts.map(v=>v.slice());points=base.map(v=>v.slice());['tx','ty','tz','rx','ry','rz'].forEach(id=>$(id).value=0);['sx','sy','sz'].forEach(id=>$(id).value=1);setEnabled(true);status.textContent='분석 성공: '+profile.label+' / '+profile.count+'개 정점 / 위치 오프셋 0x'+profile.pos.toString(16)+'\n원본 파일: '+f.name+' ('+bytes.length.toLocaleString()+' bytes)';update();}catch(e){original=null;bytes=null;profile=null;base=[];points=[];setEnabled(false);status.textContent='불러오기 실패: '+e.message;draw();}});
+});
+$('apply').addEventListener('click',function(){try{points=transformed();draw();status.textContent+='\n미리보기 변형을 계산했습니다. 저장 시 원본 좌표에 적용됩니다.';}catch(e){status.textContent=e.message;}});
+$('zero').addEventListener('click',function(){['tx','ty','tz','rx','ry','rz'].forEach(id=>$(id).value=0);['sx','sy','sz'].forEach(id=>$(id).value=1);update();});
+$('reset').addEventListener('click',function(){if(!profile)return;base=base.map(v=>v.slice());$('zero').click();status.textContent+='\n원본 좌표 기준으로 초기화했습니다.';});
+['tx','ty','tz','sx','sy','sz','rx','ry','rz'].forEach(id=>$(id).addEventListener('input',update));
+$('save').addEventListener('click',function(){
+ if(!original||!profile)return;
+ try{var result=transformed(),out=original.slice(0),d=new DataView(out);result.forEach(function(p,i){var o=profile.pos+i*12;d.setFloat32(o,p[0],true);d.setFloat32(o+4,p[1],true);d.setFloat32(o+8,p[2],true);});
+ var blob=new Blob([out],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='accessory_'+profile.name+'_edited.ebo';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000);status.textContent+='\n저장 완료: accessory_'+profile.name+'_edited.ebo';}catch(e){status.textContent='저장 실패: '+e.message;}
+});
+canvas.addEventListener('pointerdown',function(e){drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',function(e){if(!drag)return;yaw+=(e.clientX-drag.x)*0.009;pitch=Math.max(-1.5,Math.min(1.5,pitch+(e.clientY-drag.y)*0.009));drag={x:e.clientX,y:e.clientY};draw();});
+canvas.addEventListener('pointerup',function(){drag=null;});canvas.addEventListener('pointercancel',function(){drag=null;});
+canvas.addEventListener('wheel',function(e){e.preventDefault();zoom=Math.max(.2,Math.min(8,zoom*(e.deltaY<0?1.1:.9)));draw();},{passive:false});
+draw();
+})();
+</script></body></html>
