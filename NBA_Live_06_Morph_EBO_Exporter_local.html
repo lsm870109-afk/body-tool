@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NBA Live 06 Morph EBO Exporter</title>
+<style>
+body{font:15px system-ui,sans-serif;max-width:760px;margin:32px auto;padding:0 16px;line-height:1.55;color:#202124}
+h1{font-size:23px} .panel{border:1px solid #ccc;border-radius:12px;padding:16px;margin:14px 0}
+label{display:block;font-weight:600;margin:12px 0 5px}input{width:100%}
+button{padding:11px 18px;border:0;border-radius:8px;background:#2459a6;color:white;font-weight:700;cursor:pointer}
+button:disabled{opacity:.45}#status{white-space:pre-wrap;background:#f4f5f7;padding:12px;border-radius:8px;margin-top:14px}
+small{color:#555}
+</style>
+</head>
+<body>
+<h1>NBA Live 06 Morph EBO Exporter</h1>
+<p>573개 정점 / 1,128개 삼각형 OBJ를 기존 Morph EBO에 적용합니다. 원본 EBO는 수정하지 않고 새 파일을 내려받습니다.</p>
+<div class="panel">
+<label>1. 원본 EBO (예: damilicB.ebo)</label><input id="ebo" type="file" accept=".ebo">
+<label>2. 기본 중립 OBJ (06_head_neutral_mesh.obj)</label><input id="base" type="file" accept=".obj">
+<label>3. 수정 OBJ (damilicB_2_refined_v1.obj)</label><input id="edit" type="file" accept=".obj">
+<p><small>세 파일은 같은 06 머리 정점 순서와 토폴로지를 사용해야 합니다.</small></p>
+<button id="go">검사 후 EBO 만들기</button>
+<div id="status">파일 3개를 선택해 주세요.</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function parseOBJ(s){
+ const v=[],f=[];
+ const lines=s.replace(/^\uFEFF/,"").split(/\r?\n/);
+ for(let n=0;n<lines.length;n++){
+  const p=lines[n].trim().split(/\s+/);
+  if(p[0]==="v"){
+   if(p.length<4)throw Error("OBJ 정점 오류, 줄 "+(n+1));
+   const q=p.slice(1,4).map(Number);
+   if(q.some(x=>!Number.isFinite(x)))throw Error("정점 숫자 오류, 줄 "+(n+1));
+   v.push(q);
+  }else if(p[0]==="f"){
+   if(p.length<4)throw Error("OBJ 면 오류, 줄 "+(n+1));
+   const ids=p.slice(1).map(t=>{
+    const raw=parseInt(t.split("/")[0],10);
+    if(!Number.isInteger(raw)||raw===0)throw Error("면 인덱스 오류, 줄 "+(n+1));
+    return raw<0?v.length+raw:raw-1;
+   });
+   for(let k=1;k<ids.length-1;k++)f.push([ids[0],ids[k],ids[k+1]]);
+  }
+ }
+ return {v,f};
+}
+function sameFaces(a,b){
+ if(a.length!==b.length)return false;
+ for(let i=0;i<a.length;i++)for(let k=0;k<3;k++)if(a[i][k]!==b[i][k])return false;
+ return true;
+}
+$("go").onclick=async()=>{
+ const status=$("status");$("go").disabled=true;
+ try{
+  const ef=$("ebo").files[0],bf=$("base").files[0],xf=$("edit").files[0];
+  if(!ef||!bf||!xf)throw Error("EBO, 기본 OBJ, 수정 OBJ를 모두 선택하세요.");
+  const [eb,bs,xs]=await Promise.all([ef.arrayBuffer(),bf.text(),xf.text()]);
+  const base=parseOBJ(bs),edit=parseOBJ(xs);
+  if(base.v.length!==573||edit.v.length!==573)throw Error("정점 수가 573개가 아닙니다. 기본="+base.v.length+", 수정="+edit.v.length);
+  if(base.f.length!==1128||edit.f.length!==1128)throw Error("삼각형 수가 1,128개가 아닙니다. 기본="+base.f.length+", 수정="+edit.f.length);
+  if(!sameFaces(base.f,edit.f))throw Error("면 연결 순서 또는 방향이 기본 OBJ와 다릅니다.");
+  const data=new DataView(eb);
+  if(eb.byteLength<0x124)throw Error("EBO 헤더가 너무 짧습니다.");
+  const magic=String.fromCharCode(...new Uint8Array(eb,0,4));
+  if(magic!=="EBO\0")throw Error("EBO 매직이 올바르지 않습니다: "+JSON.stringify(magic));
+  const size=data.getUint32(0x11c,true),off=data.getUint32(0x120,true),expected=573*3*4;
+  if(size!==expected)throw Error("Morph payload 크기가 "+size+"바이트입니다. 예상값 "+expected+"와 다릅니다.");
+  if(off+size>eb.byteLength)throw Error("Morph payload 위치가 EBO 파일 범위를 벗어납니다.");
+  const out=eb.slice(0),od=new DataView(out);
+  let moved=0,max=0,sum=0;
+  for(let i=0;i<573;i++){
+   const d=edit.v[i].map((x,k)=>x-base.v[i][k]);
+   const len=Math.hypot(...d);if(len>1e-6)moved++;max=Math.max(max,len);sum+=len;
+   for(let k=0;k<3;k++)od.setFloat32(off+(i*3+k)*4,d[k],true);
+  }
+  const name=xf.name.replace(/\.obj$/i,"")+"_morph.ebo";
+  const blob=new Blob([out],{type:"application/octet-stream"}),url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  status.textContent="완료: "+name+"\n정점: 573\n삼각형: 1,128\n변경 정점: "+moved+" / 573\n최대 변위: "+max.toFixed(6)+"\n평균 변위: "+(sum/573).toFixed(6)+"\nMorph offset: 0x"+off.toString(16)+"\nPayload: "+size+" bytes\n파일 크기: "+out.byteLength+" bytes\n\n원본 EBO의 Morph XYZ 영역만 교체했습니다.";
+ }catch(e){status.textContent="오류: "+e.message;}
+ finally{$("go").disabled=false;}
+};
+</script>
+</body></html>
