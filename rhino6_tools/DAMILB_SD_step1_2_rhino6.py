@@ -80,7 +80,7 @@ def main():
             raise Exception('Internal head-weight count is not 573.')
 
         src = read_bytes(ebo_path)
-        if len(src) < 0x124 or src[:4] != 'EBO\\x00':
+        if len(src) < 0x124 or src[:3] != 'EBO' or ord(src[3]) != 0:
             raise Exception('Invalid or incomplete EBO file.')
 
         size = struct.unpack_from('<I', src, SIZE_FIELD)[0]
