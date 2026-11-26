@@ -1,31 +1,30 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NBA Live EBO XYZ 좌표 변환기</title>
+<title>NBA Live EBO 머리 위치 이동 도구</title>
 <style>
-:root{font-family:Arial,'Malgun Gothic',sans-serif;color:#202938;background:#f3f5f8}*{box-sizing:border-box}body{margin:0;padding:22px}.wrap{max-width:1050px;margin:auto}.card{background:white;border:1px solid #dce2ea;border-radius:13px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #1522380a}h1{font-size:24px;margin:4px 0 8px}h2{font-size:18px;margin:0 0 12px}.muted{color:#697586;font-size:13px;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#526071}input,select,button{font:inherit;border:1px solid #cbd3df;border-radius:8px;padding:9px;background:white;color:#172033}input[type=file]{width:100%}input[type=number]{width:100%}button{cursor:pointer;background:#245edb;color:white;border:0;font-weight:700;padding:11px 15px}button.secondary{background:#e9eef8;color:#24416f}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.stat{font-size:13px;line-height:1.8;background:#f7f9fc;border-radius:8px;padding:10px;white-space:pre-wrap}.status{padding:9px;border-radius:8px;background:#eef4ff;color:#24416f;font-size:13px}.warn{color:#a34c00}.hidden{display:none}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid #e5e9ef;padding:7px;text-align:right}th:first-child,td:first-child{text-align:left}.axis{font-weight:bold}.pill{display:inline-block;background:#eaf0ff;border-radius:20px;padding:4px 9px;font-size:12px}@media(max-width:600px){body{padding:10px}.card{padding:13px}}
+:root{font-family:Arial,'Malgun Gothic',sans-serif;color:#202938;background:#f3f5f8}*{box-sizing:border-box}body{margin:0;padding:22px}.wrap{max-width:850px;margin:auto}.card{background:#fff;border:1px solid #dce2ea;border-radius:13px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #1522380a}h1{font-size:24px;margin:4px 0 8px}h2{font-size:18px;margin:0 0 12px}.muted{color:#697586;font-size:13px;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#526071}input,button{font:inherit;border:1px solid #cbd3df;border-radius:8px;padding:11px;background:white;color:#172033}input[type=file]{width:100%}input[type=number]{width:100%;font-size:18px}button{cursor:pointer;background:#245edb;color:white;border:0;font-weight:700;padding:11px 15px}button.secondary{background:#e9eef8;color:#24416f}button:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.stat{font-size:13px;line-height:1.8;background:#f7f9fc;border-radius:8px;padding:10px;white-space:pre-wrap}.status{padding:9px;border-radius:8px;background:#eef4ff;color:#24416f;font-size:13px}.axis{font-weight:bold}.hint{font-size:12px;color:#718096}@media(max-width:600px){body{padding:10px}.card{padding:13px}.grid{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
-<h1>NBA Live EBO X·Y·Z 좌표 변환기</h1><p class="muted">기준 EBO에 맞춰 자동 정렬하거나, X/Y/Z 이동량과 배율을 직접 입력할 수 있습니다. 원본 파일은 덮어쓰지 않고 새 EBO로 저장합니다.</p>
-<section class="card"><h2>1. 파일 불러오기</h2><div class="grid">
-<label class="field">기준 얼굴 메시 (EBO 또는 OBJ)<input id="refFile" type="file" accept=".ebo,.bin,.obj"></label>
-<label class="field">변환할 머리 EBO<input id="srcFile" type="file" accept=".ebo,.bin"></label></div><div class="row" style="margin-top:12px"><button id="loadBtn">파일 분석</button><span id="status" class="status">두 파일을 선택하세요.</span></div>
-<div class="grid" style="margin-top:12px"><div><b>기준 파일</b><div id="refInfo" class="stat">미분석</div></div><div><b>변환 대상</b><div id="srcInfo" class="stat">미분석</div></div></div></section>
-<section class="card"><h2>2. 보정 방식</h2><div class="row"><label><input type="radio" name="mode" value="auto" checked> 자동 보정</label><label><input type="radio" name="mode" value="manual"> 직접 입력</label><label><input type="radio" name="mode" value="both"> 자동 + 수동</label></div>
-<p class="muted">자동 보정은 두 파일의 바운딩 박스 중심과 축별 크기를 기준으로 맞춥니다. 얼굴의 실제 해부학적 대응점을 인식하는 기능은 아니므로, 정점 구조가 다른 파일에서는 미세 조정이 필요합니다.</p>
-<div id="autoBox" class="stat">자동 보정: 기준 파일의 중심과 크기에 대상 머리를 맞춥니다.</div>
-<div id="manualBox" class="grid hidden">
-<label class="field">X 이동<input id="ox" type="number" step="0.001" value="0"></label><label class="field">Y 이동<input id="oy" type="number" step="0.001" value="0"></label><label class="field">Z 이동<input id="oz" type="number" step="0.001" value="0"></label>
-<label class="field">X 배율<input id="sx" type="number" step="0.001" value="1"></label><label class="field">Y 배율<input id="sy" type="number" step="0.001" value="1"></label><label class="field">Z 배율<input id="sz" type="number" step="0.001" value="1"></label>
-<label class="field">출력 X축으로 사용할 원본 축<select id="ax"><option value="0">X</option><option value="1">Y</option><option value="2">Z</option></select></label>
-<label class="field">출력 Y축으로 사용할 원본 축<select id="ay"><option value="1">Y</option><option value="0">X</option><option value="2">Z</option></select></label>
-<label class="field">출력 Z축으로 사용할 원본 축<select id="az"><option value="2">Z</option><option value="0">X</option><option value="1">Y</option></select></label>
-<label class="field">X 방향<select id="fx"><option value="1">정방향</option><option value="-1">반전</option></select></label><label class="field">Y 방향<select id="fy"><option value="1">정방향</option><option value="-1">반전</option></select></label><label class="field">Z 방향<select id="fz"><option value="1">정방향</option><option value="-1">반전</option></select></label>
-</div><div class="row" style="margin-top:12px"><button id="previewBtn" class="secondary">변환 결과 계산</button><button id="saveBtn" disabled>변환 EBO 저장</button><button id="csvBtn" class="secondary" disabled>좌표 CSV 저장</button></div></section>
-<section class="card"><h2>3. 변환 결과</h2><div id="result" class="stat">아직 계산하지 않았습니다.</div><div id="compare"></div></section>
-<p class="muted">주의: 자동 보정은 바운딩 박스 기반의 초기 정렬입니다. 기준 파일과 대상 파일의 원점·축 정의가 다르거나 정점 구조가 다르면 실제 착용 위치가 완전히 일치하지 않을 수 있습니다. 변환 대상은 PCVertexBuffer가 포함된 메시 EBO여야 합니다. 기준 파일은 메시 EBO 또는 OBJ를 사용할 수 있습니다. Morph 전용 EBO는 기준 좌표로 사용할 수 없습니다.</p>
+<h1>NBA Live EBO 머리 위치 이동 도구</h1>
+<p class="muted">기준 얼굴 파일 없이 머리 EBO 하나만 불러와 X/Y/Z 위치를 이동합니다. 정점의 위치와 바운딩 정보만 갱신하며, 본·메시 연결·기타 데이터는 그대로 보존합니다.</p>
+<section class="card"><h2>1. 머리 EBO 파일</h2>
+<label class="field">이동할 머리 EBO 선택<input id="srcFile" type="file" accept=".ebo,.bin"></label>
+<div class="row" style="margin-top:12px"><button id="loadBtn">파일 불러오기</button><span id="status" class="status">EBO 파일을 선택하세요.</span></div>
+<div id="fileInfo" class="stat" style="margin-top:12px">아직 파일을 불러오지 않았습니다.</div></section>
+<section class="card"><h2>2. 이동할 위치 입력</h2>
+<div class="grid">
+<label class="field"><span class="axis">X 이동</span><input id="ox" type="number" step="0.001" value="0"></label>
+<label class="field"><span class="axis">Y 이동</span><input id="oy" type="number" step="0.001" value="0"></label>
+<label class="field"><span class="axis">Z 이동</span><input id="oz" type="number" step="0.001" value="0"></label>
+</div>
+<p class="hint">양수(+)는 해당 축의 증가 방향, 음수(-)는 반대 방향입니다. 예: X +0.2 / Y -0.1 / Z +0.5</p>
+<div class="row" style="margin-top:12px"><button id="previewBtn" class="secondary" disabled>이동 결과 계산</button><button id="saveBtn" disabled>새 EBO로 저장</button><button id="resetBtn" class="secondary">이동량 초기화</button></div>
+</section>
+<section class="card"><h2>3. 이동 결과</h2><div id="result" class="stat">파일을 불러온 뒤 이동량을 입력하세요.</div></section>
+<p class="muted">원본 파일은 덮어쓰지 않습니다. 저장 결과는 파일명 뒤에 _moved가 붙습니다. 게임에서 확인 후 위치가 부족하거나 지나치면 이동량을 조절해 다시 원본에서 변환하세요.</p>
 </div>
 <script>
 'use strict';
-let REF=null,SRC=null,OUT=null,OUTPOS=null;
+let SRC=null,OUT=null;
 const $=id=>document.getElementById(id);
 function view(u){return new DataView(u.buffer,u.byteOffset,u.byteLength)}
 function parseEbo(u8){
@@ -43,52 +42,13 @@ function parseEbo(u8){
  let P=new Float32Array(n*3),N=new Float32Array(n*3);for(let j=0;j<n*3;j++){P[j]=d.getFloat32(vb[0].off+j*4,true);N[j]=d.getFloat32(vb[1].off+j*4,true)}
  return {n,pos:P,nor:N,posOff:vb[0].off,norOff:vb[1].off,bbOff:geom.off,declared};
 }
-function parseObj(text){
- const P=[];
- for(const line of text.split(/\r?\n/)){
-  const m=line.trim().match(/^v\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/);
-  if(m){const v=m.slice(1,4).map(Number);if(v.every(Number.isFinite))P.push(...v)}
- }
- if(P.length<9)throw Error('OBJ에서 정점(v) 좌표를 찾지 못했습니다.');
- return {n:P.length/3,pos:new Float32Array(P),nor:new Float32Array(P.length)};
-}
-function parseReference(u8,name){
- if(/\.obj$/i.test(name))return parseObj(new TextDecoder().decode(u8));
- try{return parseEbo(u8)}catch(e){
-  if(String(e.message).includes('PCVertexBuffer'))throw Error('기준 파일에 PCVertexBuffer가 없습니다. default face.ebo 같은 Morph 전용 파일은 좌표 기준으로 사용할 수 없습니다. 06_head_neutral_mesh.obj 또는 실제 메시 EBO를 기준 파일로 선택하세요.');
-  throw e;
- }
-}
-function bounds(p){let mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];for(let i=0;i<p.length;i+=3)for(let a=0;a<3;a++){let v=p[i+a];if(!Number.isFinite(v))throw Error('좌표에 유효하지 않은 값이 있습니다.');mn[a]=Math.min(mn[a],v);mx[a]=Math.max(mx[a],v)}return{min:mn,max:mx,center:mn.map((v,i)=>(v+mx[i])/2),size:mn.map((v,i)=>mx[i]-v)}}
+
+function bounds(p){let mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];for(let i=0;i<p.length;i+=3)for(let a=0;a<3;a++){const v=p[i+a];if(!Number.isFinite(v))throw Error('좌표에 유효하지 않은 값이 있습니다.');mn[a]=Math.min(mn[a],v);mx[a]=Math.max(mx[a],v)}return{min:mn,max:mx,center:mn.map((v,i)=>(v+mx[i])/2),size:mn.map((v,i)=>mx[i]-v)}}
 function fmt(a){return a.map(x=>x.toFixed(5)).join(', ')}
-function info(a){let b=bounds(a.pos);return '정점: '+a.n.toLocaleString()+'개\n중심: '+fmt(b.center)+'\n최소: '+fmt(b.min)+'\n최대: '+fmt(b.max)+'\n크기: '+fmt(b.size)}
+function download(data,name){const blob=new Blob([data],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 async function readFile(f){return new Uint8Array(await f.arrayBuffer())}
-$('loadBtn').onclick=async()=>{try{$('status').textContent='파일 분석 중...';let rf=$('refFile').files[0],sf=$('srcFile').files[0];if(!rf||!sf)throw Error('기준 EBO와 변환 대상 EBO를 모두 선택하세요.');let [ru,su]=await Promise.all([readFile(rf),readFile(sf)]);REF={name:rf.name,u8:ru,a:parseReference(ru,rf.name)};SRC={name:sf.name,u8:su,a:parseEbo(su)};$('refInfo').textContent=info(REF.a);$('srcInfo').textContent=info(SRC.a);$('status').textContent='분석 완료 · 기준 '+REF.a.n+'점 / 대상 '+SRC.a.n+'점';OUT=null;$('saveBtn').disabled=$('csvBtn').disabled=true}catch(e){$('status').textContent='오류: '+e.message}};
-function mode(){return document.querySelector('input[name=mode]:checked').value}
-document.querySelectorAll('input[name=mode]').forEach(x=>x.onchange=()=>{$('manualBox').classList.toggle('hidden',mode()==='auto');$('autoBox').textContent=mode()==='manual'?'자동 보정 없이 수동 입력값만 적용합니다.':mode()==='both'?'자동 중심·크기 정렬 후 수동 축 변환·배율·이동량을 추가 적용합니다.':'기준 파일의 중심과 축별 크기에 대상 머리를 맞춥니다.'});
-function calc(){if(!REF||!SRC)throw Error('먼저 두 EBO 파일을 분석하세요.');let rp=REF.a.pos,sp=SRC.a.pos,rb=bounds(rp),sb=bounds(sp),m=mode();
- let axes=[0,1,2],sign=[1,1,1],scale=[1,1,1],off=[0,0,0];
- if(m!=='auto'){axes=[$('ax').value,$('ay').value,$('az').value].map(Number);if(new Set(axes).size!==3)throw Error('X/Y/Z 축 선택은 서로 달라야 합니다.');sign=[$('fx').value,$('fy').value,$('fz').value].map(Number);scale=[$('sx').value,$('sy').value,$('sz').value].map(Number);off=[$('ox').value,$('oy').value,$('oz').value].map(Number);if([...scale,...off].some(v=>!Number.isFinite(v))||scale.some(v=>v===0))throw Error('배율은 0이 아닌 유효한 숫자여야 합니다.')}
- let mapped=new Float64Array(sp.length);for(let i=0;i<sp.length;i+=3)for(let a=0;a<3;a++)mapped[i+a]=sign[a]*sp[i+axes[a]];
- let mb=bounds(mapped),f=[1,1,1],targetCenter=rb.center.slice();
- if(m!=='manual'){for(let a=0;a<3;a++){if(mb.size[a]<1e-9)throw Error('대상 파일의 '+['X','Y','Z'][a]+'축 크기가 0에 가깝습니다.');f[a]=rb.size[a]/mb.size[a]}}
- let P=new Float32Array(sp.length),N=new Float32Array(sp.length),pivot=m==='manual'?mb.center:targetCenter;
- for(let i=0;i<sp.length;i+=3){for(let a=0;a<3;a++){let v=m==='manual'?mapped[i+a]:targetCenter[a]+(mapped[i+a]-mb.center[a])*f[a];P[i+a]=pivot[a]+(v-pivot[a])*scale[a]+off[a]}
- // normals follow axis mapping, sign, scale, auto size factor
- let raw=[SRC.a.nor[i],SRC.a.nor[i+1],SRC.a.nor[i+2]],nn=axes.map((ax,a)=>raw[ax]*sign[a]/(f[a]*scale[a]));let L=Math.hypot(...nn)||1;for(let a=0;a<3;a++)N[i+a]=nn[a]/L;
- }
- let out=new Uint8Array(SRC.u8),d=view(out),mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];for(let i=0;i<P.length;i++){if(!Number.isFinite(P[i]))throw Error('계산 결과에 유효하지 않은 좌표가 있습니다.');d.setFloat32(SRC.a.posOff+i*4,P[i],true)}
- for(let i=0;i<P.length;i+=3)for(let a=0;a<3;a++){mn[a]=Math.min(mn[a],P[i+a]);mx[a]=Math.max(mx[a],P[i+a])}
- for(let a=0;a<3;a++){d.setFloat32(SRC.a.bbOff+a*4,mn[a],true);d.setFloat32(SRC.a.bbOff+12+a*4,mx[a],true)}
- // update normals
- for(let i=0;i<N.length;i++)d.setFloat32(SRC.a.norOff+i*4,N[i],true);
- OUT=out;OUTPOS=P;let ob=bounds(P);
- $('result').textContent='방식: '+({auto:'자동 보정',manual:'직접 입력',both:'자동 + 수동'}[m])+'\n대상 중심: '+fmt(sb.center)+' → 결과 중심: '+fmt(ob.center)+'\n기준 중심: '+fmt(rb.center)+'\n결과 크기: '+fmt(ob.size)+'\n기준 크기: '+fmt(rb.size)+'\n자동 배율(축 기준): '+fmt(f)+'\n수동 이동: '+fmt(off)+'\n정점 수: '+SRC.a.n.toLocaleString()+' (변경 없음)\n원본 파일의 나머지 데이터와 파일 구조는 유지하고 정점 좌표·법선·바운딩 정보만 갱신했습니다.';
- $('compare').innerHTML='<table><tr><th>축</th><th>기준 범위</th><th>변환 후 범위</th><th>중심 차이</th></tr>'+['X','Y','Z'].map((x,a)=>'<tr><td>'+x+'</td><td>'+rb.min[a].toFixed(4)+' ~ '+rb.max[a].toFixed(4)+'</td><td>'+ob.min[a].toFixed(4)+' ~ '+ob.max[a].toFixed(4)+'</td><td>'+(ob.center[a]-rb.center[a]).toFixed(5)+'</td></tr>').join('')+'</table>';
- $('saveBtn').disabled=$('csvBtn').disabled=false;
-}
-$('previewBtn').onclick=()=>{try{calc()}catch(e){$('result').textContent='오류: '+e.message}};
-$('saveBtn').onclick=()=>{if(!OUT)return;download(OUT,(SRC.name.replace(/\.ebo$/i,'')+'_XYZ_fixed.ebo'),'application/octet-stream')};
-$('csvBtn').onclick=()=>{if(!OUTPOS)return;let rows=['index,x,y,z'];for(let i=0;i<OUTPOS.length;i+=3)rows.push((i/3)+','+OUTPOS[i]+','+OUTPOS[i+1]+','+OUTPOS[i+2]);download(new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'}),(SRC.name.replace(/\.ebo$/i,'')+'_XYZ.csv'),'text/csv')};
-function download(data,name,type){let blob=data instanceof Blob?data:new Blob([data],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+$('loadBtn').onclick=async()=>{try{const f=$('srcFile').files[0];if(!f)throw Error('머리 EBO 파일을 선택하세요.');const u=await readFile(f),a=parseEbo(u),b=bounds(a.pos);SRC={name:f.name,u8:u,a};OUT=null;$('previewBtn').disabled=false;$('saveBtn').disabled=true;$('status').textContent='파일 불러오기 완료';$('fileInfo').textContent='파일: '+f.name+'\n정점 수: '+a.n.toLocaleString()+'개\n현재 중심: '+fmt(b.center)+'\n현재 크기: '+fmt(b.size)+'\n현재 최소: '+fmt(b.min)+'\n현재 최대: '+fmt(b.max);$('result').textContent='이동량을 입력하고 [이동 결과 계산]을 누르세요.'}catch(e){$('status').textContent='오류: '+e.message;SRC=null;OUT=null;$('previewBtn').disabled=$('saveBtn').disabled=true}};
+$('previewBtn').onclick=()=>{try{if(!SRC)throw Error('먼저 머리 EBO 파일을 불러오세요.');const off=[$('ox').value,$('oy').value,$('oz').value].map(Number);if(off.some(v=>!Number.isFinite(v)))throw Error('X/Y/Z에 유효한 숫자를 입력하세요.');const out=new Uint8Array(SRC.u8),d=view(out),P=new Float32Array(SRC.a.n*3),mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];for(let i=0;i<P.length;i+=3){for(let k=0;k<3;k++){const v=SRC.a.pos[i+k]+off[k];if(!Number.isFinite(v))throw Error('계산 결과가 유효하지 않습니다.');P[i+k]=v;mn[k]=Math.min(mn[k],v);mx[k]=Math.max(mx[k],v);d.setFloat32(SRC.a.posOff+i*4+k*4,v,true)}}for(let k=0;k<3;k++){d.setFloat32(SRC.a.bbOff+k*4,mn[k],true);d.setFloat32(SRC.a.bbOff+12+k*4,mx[k],true)}const before=bounds(SRC.a.pos),after=bounds(P);OUT=out;$('saveBtn').disabled=false;$('result').textContent='적용 이동량 (X, Y, Z): '+fmt(off)+'\n중심: '+fmt(before.center)+' → '+fmt(after.center)+'\n최소: '+fmt(after.min)+'\n최대: '+fmt(after.max)+'\n정점 수: '+SRC.a.n.toLocaleString()+'개 (변경 없음)\n정점 위치와 바운딩 정보만 변경했습니다.'}catch(e){OUT=null;$('saveBtn').disabled=true;$('result').textContent='오류: '+e.message}};
+$('saveBtn').onclick=()=>{if(!SRC||!OUT)return;download(OUT,SRC.name.replace(/\.ebo$/i,'')+'_moved.ebo')};
+$('resetBtn').onclick=()=>{$('ox').value=$('oy').value=$('oz').value='0';OUT=null;$('saveBtn').disabled=true;$('result').textContent='이동량을 초기화했습니다. 이동 결과를 다시 계산하세요.'};
 </script></body></html>
