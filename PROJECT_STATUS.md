@@ -5,38 +5,27 @@
 - STEP 02 — OTools feasibility verification: completed.
 - STEP 03 — Skeleton structure reconstruction: completed.
 - STEP 04 — Formal before/after skeleton diff: completed.
-- STEP 05 — ORD/ORL structure analysis: not started as the next official stage.
+- STEP 05 — ORD/ORL animation structure analysis (O.Tools dump scope): completed.
+- STEP 06 — Animation and skeleton correlation: pending.
 
-## STEP 04 confirmed findings
-- Compared all 64 bones from skeleton_before.csv and skeleton_after.csv.
-- Parent IDs changed: 0.
-- Scale changed: 0.
-- Quaternion changed: 0.
-- Local translation xyz changed: 44 bones.
-- Inverse-base-transform entries 12–14 changed: 63 bones.
-- Inverse-base-transform entries 0–11 and 15 unchanged.
-- Hips (1) unchanged.
-- LowerSpine (28), MiddleSpine (29), UpperSpine (30) local translation changes are recorded in STEP04_SKELETON_DIFF.md.
-- LHandBallSnap (37) and RHandBallSnap (44) both have local translation changes.
-- Descendant inverse-matrix translation terms changed even where local translation did not, consistent with inherited parent-space movement.
+## STEP 05 confirmed findings
+- An accessible `xmcpjump.txt` dump identifies source object `xmcpjump.o`.
+- AnimationBank at 0x4D850: size 28, NumAnimations 779, Animations array at 0x4BFF8, AnimationNames at 0x4CC24.
+- All 779 names pair with ANIM_COMPOUND records.
+- 607 compounds have one channel; 172 have two channels; total 951 channel payload records.
+- Payload type counts: ANIM_DELTAF3 313; ANIM_DELTAQFAST 315; ANIM_DELTAF1 151; ANIM_RAWEVENT 105; ANIM_CSISEVENT 67.
+- There are 105 `_ball` tracks, all one-channel ANIM_DELTAF3; frame counts 3–92.
+- There are 105 `_velocity` tracks, all one-channel; 59 ANIM_DELTAF3 and 46 ANIM_DELTAF1.
+- OTools source defines the ANIM_COMPOUND header and channel-offset array, but does not decode these payloads into per-frame values in this dump path.
+- `xmcpdnk.txt` is listed in the repo but could not be read by the current GitHub file reader (empty response); its detailed data remains unverified in this step.
+- Raw .ord/.orl container parsing and runtime channel semantics remain unverified.
 
-## STEP 04 interpretation limits
-- Matrix storage convention and multiplication order not independently proven.
-- Coordinate axes/handedness not established; do not call X/Y/Z a particular world direction.
-- No conclusion yet about animation data, in-game jump height, ball attachment runtime behavior, or EXE physics.
-- No source binary was modified.
+## STEP 05 outputs
+- STEP05_ORD_ORL_ANALYSIS.md
 
-## Outputs
-- STEP03_SKELETON_ANALYSIS.md
-- skeleton_before.csv
-- skeleton_after.csv
-- STEP04_SKELETON_DIFF.md
-- skeleton_diff.csv
-- PROJECT_STATUS.md
+## STEP 06 scope
+Correlate the decoded animation channels with the edited skeleton, prioritizing ball tracks, HandBallSnap (37/44), and the reported dunk/shot alignment problems. First obtain or implement a reliable decoder for DELTAF3, DELTAF1, and DELTAQFAST, and restore access to the detailed xmcpdnk dump.
 
-## Next exact task
-- STEP 05 — ORD/ORL structure analysis, beginning with the relevant animation files and channel payload structure. Correlate skeleton bone changes with animation data only after parsing the ORD/ORL representation.
-
-## Approval
-- STEP 04 report saved and presented.
-- Awaiting user approval before STEP 05.
+## Safety
+No original game files, animation files, skeleton binaries, or EXE files were modified.
+Awaiting user approval before STEP 06.
