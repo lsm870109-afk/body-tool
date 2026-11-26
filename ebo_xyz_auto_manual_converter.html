@@ -56,8 +56,8 @@ function calc(){if(!REF||!SRC)throw Error('먼저 두 EBO 파일을 분석하세
  let mapped=new Float64Array(sp.length);for(let i=0;i<sp.length;i+=3)for(let a=0;a<3;a++)mapped[i+a]=sign[a]*sp[i+axes[a]];
  let mb=bounds(mapped),f=[1,1,1],targetCenter=rb.center.slice();
  if(m!=='manual'){for(let a=0;a<3;a++){if(mb.size[a]<1e-9)throw Error('대상 파일의 '+['X','Y','Z'][a]+'축 크기가 0에 가깝습니다.');f[a]=rb.size[a]/mb.size[a]}}
- let P=new Float32Array(sp.length),N=new Float32Array(sp.length);
- for(let i=0;i<sp.length;i+=3){for(let a=0;a<3;a++){let v=mapped[i+a];P[i+a]=(m==='manual'?v:targetCenter[a]+(v-mb.center[a])*f[a]);P[i+a]=targetCenter[a]+(P[i+a]-targetCenter[a])*scale[a]+off[a]}
+ let P=new Float32Array(sp.length),N=new Float32Array(sp.length),pivot=m==='manual'?mb.center:targetCenter;
+ for(let i=0;i<sp.length;i+=3){for(let a=0;a<3;a++){let v=m==='manual'?mapped[i+a]:targetCenter[a]+(mapped[i+a]-mb.center[a])*f[a];P[i+a]=pivot[a]+(v-pivot[a])*scale[a]+off[a]}
  // normals follow axis mapping, sign, scale, auto size factor
  let raw=[SRC.a.nor[i],SRC.a.nor[i+1],SRC.a.nor[i+2]],nn=axes.map((ax,a)=>raw[ax]*sign[a]/(f[a]*scale[a]));let L=Math.hypot(...nn)||1;for(let a=0;a<3;a++)N[i+a]=nn[a]/L;
  }
