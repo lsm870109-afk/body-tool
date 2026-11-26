@@ -6,26 +6,32 @@
 - STEP 03 — Skeleton structure reconstruction: completed.
 - STEP 04 — Formal before/after skeleton diff: completed.
 - STEP 05 — ORD/ORL animation structure analysis (O.Tools dump scope): completed.
-- STEP 06 — Animation and skeleton correlation: pending.
+- STEP 06 — Animation and skeleton correlation: completed with documented evidence limits.
+- STEP 07 — Game EXE and physics system analysis: pending.
+- STEP 08 — Final modification and implementation plan: pending.
 
-## STEP 05 confirmed findings
-- An accessible `xmcpjump.txt` dump identifies source object `xmcpjump.o`.
-- AnimationBank at 0x4D850: size 28, NumAnimations 779, Animations array at 0x4BFF8, AnimationNames at 0x4CC24.
-- All 779 names pair with ANIM_COMPOUND records.
-- 607 compounds have one channel; 172 have two channels; total 951 channel payload records.
-- Payload type counts: ANIM_DELTAF3 313; ANIM_DELTAQFAST 315; ANIM_DELTAF1 151; ANIM_RAWEVENT 105; ANIM_CSISEVENT 67.
-- There are 105 `_ball` tracks, all one-channel ANIM_DELTAF3; frame counts 3–92.
-- There are 105 `_velocity` tracks, all one-channel; 59 ANIM_DELTAF3 and 46 ANIM_DELTAF1.
-- OTools source defines the ANIM_COMPOUND header and channel-offset array, but does not decode these payloads into per-frame values in this dump path.
-- `xmcpdnk.txt` is listed in the repo but could not be read by the current GitHub file reader (empty response); its detailed data remains unverified in this step.
-- Raw .ord/.orl container parsing and runtime channel semantics remain unverified.
+## STEP 06 confirmed findings
+- `xmcpjump.txt` was fetched and inspected (source object `xmcpjump.o`).
+- Selected name/offset mappings:
+  - `BLKHITFALL1_ball`: name index 0, compound 0x421C, one channel, 92 frames, payload `ANIM_DELTAF3`.
+  - `BLKHITFALL1_velocity`: name index 6, compound 0x62D8, one channel, 92 frames, payload `ANIM_DELTAF3`.
+  - `BLKLAYBHNDSTUFF1_ball`: name index 56, compound 0xB64C, one channel, 20 frames, payload `ANIM_DELTAF3`.
+  - `BLKLAYBHNDSTUFF1_velocity`: name index 62, compound 0xC124, one channel, 20 frames, payload `ANIM_DELTAF1`.
+- The jump dump exposes independently named `_ball` and `_velocity` tracks, but does not prove their coordinate frame or runtime attachment to HandBallSnap bones 37/44.
+- STEP04 established that the edited skeleton changed LHandBallSnap (37) and RHandBallSnap (44) translations; a mismatch with separate ball tracks is a testable hypothesis only.
+- The accessible `xmcpjump.o` name table contains no DUNK/DNK/JUMP/SHOT-named tracks; it cannot directly explain the reported dunk failure.
+- `xmcpdnk.txt` remains unreadable through the current GitHub file retrieval path (empty response, including line-range retrieval).
+- OTools source identifies DELTAF3/DELTAF1 types but outputs their payloads as raw unknown byte blocks; no validated decoder or runtime binding was established.
+- No game files or EXE were modified.
 
-## STEP 05 outputs
-- STEP05_ORD_ORL_ANALYSIS.md
+## STEP 06 output
+- STEP06_ANIMATION_SKELETON.md
 
-## STEP 06 scope
-Correlate the decoded animation channels with the edited skeleton, prioritizing ball tracks, HandBallSnap (37/44), and the reported dunk/shot alignment problems. First obtain or implement a reliable decoder for DELTAF3, DELTAF1, and DELTAQFAST, and restore access to the detailed xmcpdnk dump.
+## Remaining evidence needed
+1. Readable `xmcpdnk.txt` or original `xmcpdnk.o` / dunk animation asset.
+2. A validated DELTAF3/DELTAF1/DELTAQFAST decoder.
+3. Runtime transform/binding evidence to compare the ball track with the animated hand/snap transform.
 
 ## Safety
-No original game files, animation files, skeleton binaries, or EXE files were modified.
-Awaiting user approval before STEP 06.
+No original .o/.ord/.orl file, animation payload, skeleton binary, or game executable was modified.
+Awaiting user approval before STEP 07.
