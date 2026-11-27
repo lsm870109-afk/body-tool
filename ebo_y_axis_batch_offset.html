@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NBA Live EBO Y축 일괄 보정</title>
+<style>
+:root{font-family:Arial,'Malgun Gothic',sans-serif;color:#202938;background:#f3f5f8}*{box-sizing:border-box}body{margin:0;padding:22px}.wrap{max-width:850px;margin:auto}.card{background:#fff;border:1px solid #dce2ea;border-radius:13px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #1522380a}h1{font-size:24px;margin:4px 0 8px}h2{font-size:18px;margin:0 0 12px}.muted,.hint{color:#697586;font-size:13px;line-height:1.55}input,button{font:inherit;border:1px solid #cbd3df;border-radius:8px;padding:11px;background:white;color:#172033}input[type=file]{width:100%}input[type=number]{width:180px;font-size:18px}button{cursor:pointer;background:#245edb;color:white;border:0;font-weight:700;padding:11px 15px}button:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.stat{font-size:13px;line-height:1.8;background:#f7f9fc;border-radius:8px;padding:10px;white-space:pre-wrap}.status{padding:9px;border-radius:8px;background:#eef4ff;color:#24416f;font-size:13px}ul{padding-left:22px;font-size:13px;line-height:1.7}@media(max-width:600px){body{padding:10px}.card{padding:13px}}
+</style></head><body><div class="wrap">
+<h1>NBA Live EBO Y축 일괄 보정 도구</h1>
+<p class="muted">여러 EBO 파일의 모든 정점 Y좌표에 동일한 값을 더하거나 뺍니다. 기본값 -1.45는 기존 Y에서 1.45를 빼는 뜻입니다. X/Z 좌표, 법선, 본 및 메시 연결 데이터는 수정하지 않습니다.</p>
+<section class="card"><h2>1. 파일 선택</h2>
+<label class="muted">수정할 EBO 파일 여러 개 선택<input id="files" type="file" accept=".ebo" multiple></label>
+<div id="fileList" class="stat" style="margin-top:12px">아직 파일을 선택하지 않았습니다.</div></section>
+<section class="card"><h2>2. Y축 보정값</h2>
+<div class="row"><label for="delta">Y 이동량</label><input id="delta" type="number" step="0.001" value="-1.45"><strong>예: 6.93 → 5.48</strong></div>
+<p class="hint">양수는 위쪽(+Y), 음수는 아래쪽(-Y) 이동입니다. 이 값은 각 정점의 Y좌표에 동일하게 적용됩니다.</p>
+</section>
+<section class="card"><h2>3. 일괄 변환</h2>
+<div class="row"><button id="process" disabled>선택한 파일 변환 및 ZIP 저장</button></div>
+<div id="status" class="status" style="margin-top:12px">EBO 파일을 선택하세요.</div>
+<div id="result" class="stat" style="margin-top:12px">변환 결과가 여기에 표시됩니다.</div></section>
+<p class="muted">안전장치: 원본 파일은 브라우저에서 읽기만 하며 덮어쓰지 않습니다. 변환 결과는 ZIP 파일 하나로 내려받습니다. 변환 후 게임에서 확인해 주세요. 파일 구조가 지원 형식과 다르면 해당 파일은 건너뛰고 오류를 표시합니다.</p>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);let selected=[];
+$('files').addEventListener('change',e=>{selected=Array.from(e.target.files||[]);$('fileList').textContent=selected.length?selected.map((f,i)=>(i+1)+'. '+f.name+' ('+f.size.toLocaleString()+' bytes)').join('\n'):'아직 파일을 선택하지 않았습니다.';$('process').disabled=!selected.length;$('status').textContent=selected.length+'개 파일 선택됨.';$('result').textContent='변환 버튼을 누르면 각 파일을 검사합니다.'});
+function dv(u){return new DataView(u.buffer,u.byteOffset,u.byteLength)}
+function parseEbo(u8){
+ const d=dv(u8);if(u8.length<0x60)throw Error('파일이 너무 작습니다.');
+ const declared=d.getUint32(8,true),chunksOff=d.getUint32(16,true),stringsOff=d.getUint32(32,true),chunkCount=d.getUint16(36,true),usdCount=d.getUint16(38,true),strCount=d.getUint16(44,true),usdOff=d.getUint32(20,true);
+ if(declared>u8.length||u8.length-declared>16)throw Error('헤더 파일 크기 불일치');
+ let pos=stringsOff+4,rel={};for(let k=0;k<strCount;k++){let s='',p=pos;while(p<u8.length&&u8[p]!==0)s+=String.fromCharCode(u8[p++]);if(p>=u8.length)throw Error('문자열 테이블 오류');rel[pos-stringsOff]=s;pos+=s.length+1+((s.length+1)&1)}
+ let usd=[];for(let k=0;k<usdCount;k++)usd.push(rel[d.getUint32(usdOff+k*4,true)]||'');
+ let chunks=[],cur=chunksOff;for(let c=0;c<chunkCount;c++){if(cur+20>u8.length)throw Error('청크 헤더 범위 오류');let tc=d.getUint16(cur+2,true),rt=d.getUint32(cur+4,true),csz=d.getUint32(cur+16,true);if(csz<20||cur+csz>u8.length)throw Error('청크 크기 오류');let toc=[];for(let t=0;t<tc;t++){let to=cur+rt+t*16,rd=d.getInt32(to+12,true),off=to+rd;if(off<0||off>u8.length)throw Error('TOC 오프셋 오류');toc.push({type:usd[d.getUint16(to+2,true)],count:d.getUint32(to+4,true),off})}chunks.push({off:cur,toc});cur+=csz}
+ let toc=null;for(const c of chunks)if(c.toc.some(t=>t.type==='PCVertexBuffer'))toc=c.toc;if(!toc)throw Error('PCVertexBuffer 없음');
+ let vb=[];for(let i=0;i<toc.length-1;i++)if(toc[i].type==='PCVertexBuffer')vb.push(toc[i+1]);
+ if(vb.length!==3)throw Error('정점 버퍼 3개를 찾지 못함');
+ const n=vb[0].count/12;if(!Number.isInteger(n)||vb[1].count!==vb[0].count||vb[2].count!==n*8)throw Error('정점 버퍼 길이 불일치');
+ const geom=chunks[0].toc.find(t=>t.type==='i8'&&t.count===40);if(!geom)throw Error('바운딩 정보 없음');
+ return{n,posOff:vb[0].off,bbOff:geom.off};
+}
+function getBounds(d,p,n){let min=Infinity,max=-Infinity;for(let i=0;i<n;i++){let y=d.getFloat32(p+i*12+4,true);if(!Number.isFinite(y))throw Error('Y 좌표에 잘못된 값');min=Math.min(min,y);max=Math.max(max,y)}return{min,max}}
+function transform(buf,delta){const u=new Uint8Array(buf.slice(0)),d=dv(u),a=parseEbo(u),before=getBounds(d,a.posOff,a.n);for(let i=0;i<a.n;i++){const at=a.posOff+i*12+4,y=d.getFloat32(at,true);d.setFloat32(at,y+delta,true)}const after=getBounds(d,a.posOff,a.n);d.setFloat32(a.bbOff+4,after.min,true);d.setFloat32(a.bbOff+16,after.max,true);return{data:u,n:a.n,before,after}}
+function crc32(data){let c=0xffffffff;for(let i=0;i<data.length;i++){c^=data[i];for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}return(c^0xffffffff)>>>0}
+function u16(v){return[v&255,(v>>>8)&255]}function u32(v){return[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255]}
+function zipStore(files){const enc=new TextEncoder(),locals=[],centrals=[];let offset=0;for(const f of files){const name=enc.encode(f.name),data=f.data,crc=crc32(data),local=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...name,...data]);locals.push(local);const central=new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset),...name]);centrals.push(central);offset+=local.length}const csize=centrals.reduce((s,x)=>s+x.length,0),end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(csize),...u32(offset),...u16(0)]);return new Blob([...locals,...centrals,end],{type:'application/zip'})}
+function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+$('process').addEventListener('click',async()=>{const delta=Number($('delta').value);if(!Number.isFinite(delta)){ $('status').textContent='보정값을 확인하세요.';return}if(!selected.length)return;$('process').disabled=true;$('status').textContent='파일 변환 중...';const ok=[],bad=[];for(let i=0;i<selected.length;i++){const f=selected[i];try{const t=transform(await f.arrayBuffer(),delta);ok.push({name:f.name.replace(/\.ebo$/i,'')+'_yfix.ebo',data:t.data});bad.push({line:f.name+' : 정점 '+t.n+'개, Y 범위 '+t.before.min.toFixed(5)+'~'+t.before.max.toFixed(5)+' → '+t.after.min.toFixed(5)+'~'+t.after.max.toFixed(5),good:true})}catch(e){bad.push({line:f.name+' : 실패 - '+e.message,good:false})}$('status').textContent=(i+1)+' / '+selected.length+' 처리 중...'}if(ok.length){download(zipStore(ok),'EBO_Yfix_'+(delta<0?'minus':'plus')+Math.abs(delta).toFixed(3)+'.zip')}$('status').textContent='완료: '+ok.length+'개 성공 / '+(selected.length-ok.length)+'개 실패';$('result').textContent=bad.map(x=>(x.good?'[성공] ':'[실패] ')+x.line).join('\n')+(ok.length?'\n\nZIP 파일 다운로드를 시작했습니다.':'');$('process').disabled=false});
+</script></body></html>
